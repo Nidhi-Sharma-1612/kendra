@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+/*
+ * "Wildflower Mountain" — a botanical field-guide look. Every cabin is named for a mountain plant,
+ * so the palette is pressed-flower colors on paper: ivory, heather plum, laurel sage, blossom rose
+ * and honey, with charcoal ink for text.
+ */
+@theme {
+  --color-paper: #f7f2ea;
+  --color-paper-deep: #efe7da;
+  --color-vellum: #e6dccb;
+  --color-heather-950: #2a2030;
+  --color-heather-900: #382a40;
+  --color-heather-700: #4b3a55;
+  --color-heather-500: #6f5a7c;
+  --color-heather-200: #d9cfe0;
+  --color-sage-700: #56664c;
+  --color-sage-500: #7e8f72;
+  --color-sage-200: #d5dccb;
+  --color-blossom-500: #c98a86;
+  --color-blossom-300: #e3b9b4;
+  --color-blossom-100: #f4e3df;
+  --color-honey-500: #c9a24b;
+  --color-honey-300: #e3cb8f;
+  --color-ink-900: #23201e;
+  --color-ink-600: #5e5852;
+  --color-ink-400: #8d857c;
+
+  --font-display: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-figtree), system-ui, sans-serif;
+
+  --shadow-paper: 0 1px 0 rgb(35 32 30 / 0.04), 0 18px 40px -24px rgb(42 32 48 / 0.35);
+  --shadow-lift: 0 30px 60px -30px rgb(42 32 48 / 0.5);
+
+  --radius-arch: 999px 999px 0 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+::selection {
+  background: var(--color-heather-700);
+  color: var(--color-paper);
+}
+
+/* Soft paper fibre over a surface. */
+@utility paper {
+  position: relative;
+  isolation: isolate;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}
+
+/* Small caps label used above headings ("№ 04 · Studio"). */
+@utility label {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* Arched photo frame, the signature shape of the site. */
+@utility arch {
+  border-radius: 999px 999px 1.25rem 1.25rem;
+  overflow: hidden;
+}
+
+/* Thin double rule like a field-guide plate border. */
+@utility plate {
+  outline: 1px solid color-mix(in srgb, var(--color-heather-700) 22%, transparent);
+  outline-offset: 6px;
+}
+
+/* Hero motion: CSS-only so it plays before JavaScript loads. */
+@keyframes wf-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility rise {
+  animation: wf-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+/*
+ * Hero slideshow: 4 slides, 6s each (25% of a 24s cycle). Each slide fades in ON TOP (z-index 3)
+ * of the previous one, which stays fully opaque underneath (z-index 2) until the new slide is in,
+ * then hides. So two photos are never half-transparent at once. Slow zoom-out while showing.
+ */
+@keyframes wf-slide {
+  0% {
+    opacity: 0;
+    z-index: 3;
+    transform: scale(1.1);
+  }
+  6% {
+    opacity: 1;
+  }
+  24.9% {
+    z-index: 3;
+  }
+  25% {
+    z-index: 2;
+  }
+  31% {
+    opacity: 1;
+    z-index: 2;
+    transform: scale(1);
+  }
+  31.1%,
+  100% {
+    opacity: 0;
+    z-index: 1;
+    transform: scale(1);
+  }
+}
+/* Slide counter captions: same timing as the slides, opacity only. */
+@keyframes wf-caption {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  10%,
+  24% {
+    opacity: 1;
+    transform: none;
+  }
+  28%,
+  100% {
+    opacity: 0;
+  }
+}
+@utility hero-caption {
+  animation: wf-caption 24s linear infinite both;
+}
+/* Slide progress line: fills across the slide's 6s (25% of the cycle), then empties. */
+@keyframes wf-progress {
+  0% {
+    transform: scaleX(0);
+  }
+  25% {
+    transform: scaleX(1);
+  }
+  25.01%,
+  100% {
+    transform: scaleX(0);
+  }
+}
+@utility hero-progress {
+  animation: wf-progress 24s linear infinite both;
+}
+@utility hero-slide {
+  animation: wf-slide 24s linear infinite both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .hero-slide,
+  .hero-progress,
+  .hero-caption {
+    animation: none !important;
+  }
+  /* Without motion, just show the first slide and its caption. */
+  .hero-slide:not(:first-child),
+  .hero-caption:not(:first-of-type) {
+    display: none;
+  }
+}
+
+/* react-day-picker theme for the rate calendar */
+.rdp-root.wf-calendar {
+  --rdp-accent-color: var(--color-heather-700);
+  --rdp-accent-background-color: var(--color-heather-200);
+  --rdp-range_middle-background-color: var(--color-blossom-100);
+  --rdp-range_middle-color: var(--color-heather-900);
+  --rdp-today-color: var(--color-blossom-500);
+  --rdp-day-height: 52px;
+  --rdp-day-width: 42px;
+  --rdp-day_button-height: 50px;
+  --rdp-day_button-width: 40px;
+  --rdp-day_button-border-radius: 10px;
+  --rdp-months-gap: 2rem;
+  --rdp-disabled-opacity: 0.32;
+  font-family: var(--font-sans);
+  color: var(--color-heather-900);
+}
+.rdp-root.wf-calendar .rdp-month_caption {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+.rdp-root.wf-calendar .rdp-weekday {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-400);
+}
+.rdp-root.wf-calendar .rdp-day_button {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+.rdp-root.wf-calendar .wf-price {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--color-sage-700);
+}
+.rdp-root.wf-calendar .rdp-selected .wf-price,
+.rdp-root.wf-calendar .rdp-range_start .wf-price,
+.rdp-root.wf-calendar .rdp-range_end .wf-price {
+  color: inherit;
+  opacity: 0.85;
+}
+.rdp-root.wf-calendar .wf-booked {
+  opacity: 1;
+}
+.rdp-root.wf-calendar .wf-booked .rdp-day_button {
+  cursor: not-allowed;
+  color: var(--color-ink-400);
+  font-weight: 400;
+  text-decoration: line-through;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-blossom-500) 16%, transparent) 0 4px,
+    transparent 4px 8px
+  );
+}
+.rdp-root.wf-calendar .wf-booked .wf-price {
+  display: none;
+}
+.rdp-root.wf-calendar .rdp-day:not(.rdp-disabled):not(.rdp-selected) .rdp-day_button:hover {
+  background: var(--color-paper-deep);
+}
+.rdp-root.wf-calendar .rdp-chevron {
+  fill: var(--color-heather-700);
+}
+@media (max-width: 767px) {
+  .rdp-root.wf-calendar {
+    --rdp-day-width: 40px;
+    --rdp-day_button-width: 38px;
+  }
+  .rdp-root.wf-calendar .rdp-months {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
