@@ -13,7 +13,7 @@ export function BookDirect() {
     "No booking-site fees",
     "Live rates & availability",
     <>
-      Real people: call{" "}
+      Real people: call or text{" "}
       <a href={site.phoneHref} className="underline decoration-paper/40 underline-offset-2 hover:decoration-paper">
         {site.phone}
       </a>

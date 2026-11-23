@@ -1,13 +1,13 @@
 import Image from "next/image";
-import { MapPin } from "lucide-react";
+import { site } from "@/data/site";
 import { HeroSearch } from "@/components/booking/HeroSearch";
 
 /** Photos that cross-fade in the hero (4 slides × 6s; see .hero-slide in globals.css). */
 const SLIDES = [
-  { src: "/images/property/01.jpg", alt: "Aerial view of a cabin among red and gold fall trees", caption: "Fall on the mountain" },
-  { src: "/images/mountain-laurel/01.jpg", alt: "Mountain Laurel log cabin in fall color", caption: "Mountain Laurel" },
-  { src: "/images/property/03.jpg", alt: "The river in fall, gold trees reflected in still water", caption: "The River Path" },
-  { src: "/images/mountain-mint/02.jpg", alt: "Rocking chairs before a stone fireplace", caption: "Fireside evenings" },
+  { src: "/images/property/01.jpg", alt: "Aerial view of a cabin among red and gold fall trees" },
+  { src: "/images/mountain-laurel/01.jpg", alt: "Mountain Laurel log cabin in fall color" },
+  { src: "/images/property/03.jpg", alt: "The river in fall, gold trees reflected in still water" },
+  { src: "/images/mountain-mint/02.jpg", alt: "Rocking chairs before a stone fireplace" },
 ];
 
 // Slide i starts (i*6 - 1.5)s into the shared 24s cycle, so slide 1 is fully visible on load.
@@ -37,9 +37,13 @@ export function Hero() {
 
         {/* One content column on a shared left edge: text block, then a bottom row with the search
             (left) and the slide counter (right) on the same baseline. */}
-        <div className="relative z-[5] mx-auto flex h-full max-w-7xl flex-col justify-end px-4 pb-6 sm:px-10 sm:pb-12 lg:px-14">
-          <p className="rise inline-flex w-fit items-center gap-2 rounded-full border border-paper/25 bg-paper/10 px-3.5 py-1.5 text-xs font-medium tracking-wide text-paper backdrop-blur-md">
-            <MapPin className="size-3.5" aria-hidden /> Near Gatlinburg, Tennessee
+        {/* pb-24 on phones leaves room under the search for the chat bubble. */}
+        <div className="relative z-[5] mx-auto flex h-full max-w-7xl flex-col justify-end px-4 pb-24 sm:px-10 sm:pb-12 lg:px-14">
+          {/* Same line-and-label eyebrow as every other page */}
+          <p className="rise label flex items-center gap-3 text-paper [text-shadow:0_1px_3px_rgb(0_0_0/0.5)]">
+            <span className="h-px w-8 bg-blossom-300" aria-hidden />
+            {site.place}
+            <span className="hidden text-paper/80 sm:inline">· near Gatlinburg, Tennessee</span>
           </p>
 
           <h1 className="rise mt-5 max-w-4xl font-display font-medium text-paper" style={{ animationDelay: "80ms" }}>
@@ -48,33 +52,12 @@ export function Hero() {
           </h1>
 
           <p className="rise mt-5 max-w-md text-base leading-relaxed text-paper/85 sm:text-lg" style={{ animationDelay: "160ms" }}>
-            Twelve rustic, romantic cabins on thirty wooded acres, each with a private hot tub, a heart-shaped jacuzzi and a wood-burning fireplace.
+            Twelve rustic cabins on a thirty-acre preserve in the Smokies, designed and built for nature and romance.
           </p>
 
-          <div className="rise mt-8 flex items-end justify-between gap-10 sm:mt-10" style={{ animationDelay: "240ms" }}>
-            {/* Search widget: the main action, larger with a soft glow. Popovers open upward to stay on screen. */}
-            <div className="w-full max-w-[56rem] rounded-[2rem] shadow-[0_0_0_8px_rgb(247_242_234/0.18),0_30px_70px_-20px_rgb(0_0_0/0.6)] sm:rounded-full">
-              <HeroSearch placement="top" featured />
-            </div>
-
-            {/* Slide counter: current caption + progress lines (wide screens, beside the search) */}
-            <div className="hidden shrink-0 pb-2 xl:block" aria-hidden>
-              <div className="relative h-6 w-56 text-right">
-                {SLIDES.map((s, i) => (
-                  <p key={s.caption} className="hero-caption absolute inset-0 font-display text-lg text-paper italic" style={delay(i)}>
-                    <span className="mr-2 font-sans text-xs not-italic tracking-[0.2em] text-paper/60">0{i + 1} / 0{SLIDES.length}</span>
-                    {s.caption}
-                  </p>
-                ))}
-              </div>
-              <div className="mt-3 flex justify-end gap-1.5">
-                {SLIDES.map((s, i) => (
-                  <span key={s.src} className="h-0.5 w-10 overflow-hidden rounded-full bg-paper/25">
-                    <span className="hero-progress block h-full w-full origin-left bg-paper" style={delay(i)} />
-                  </span>
-                ))}
-              </div>
-            </div>
+          {/* Search widget: the main action, larger with a soft glow. Popovers open upward to stay on screen. */}
+          <div className="rise mt-8 w-full max-w-[56rem] rounded-[2rem] shadow-[0_0_0_8px_rgb(247_242_234/0.18),0_30px_70px_-20px_rgb(0_0_0/0.6)] sm:mt-10 sm:rounded-full" style={{ animationDelay: "240ms" }}>
+            <HeroSearch placement="top" featured />
           </div>
         </div>
       </div>

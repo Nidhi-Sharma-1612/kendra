@@ -6,13 +6,19 @@ import type { Night } from "@/lib/webrez";
 
 /**
  * Shared booking state for one cabin page: the live nights from /api/rates (loaded a two-month
- * window at a time) and the guest's chosen dates. The inline rate calendar and the sticky reserve
- * card both read from here.
+ * window at a time), the guest's chosen dates and party. The booking panel (desktop card, mobile bar
+ * and sheet) reads from here.
  */
 
 type Stay = {
   slug: string;
   name: string;
+  sleeps: number;
+  petsAllowed: boolean;
+  guests: number;
+  dogs: number;
+  setGuests: (n: number) => void;
+  setDogs: (n: number) => void;
   nights: Map<string, Night>;
   /** True once at least one window loaded; false if the feed is down (prices are then hidden). */
   live: boolean;
@@ -29,9 +35,20 @@ const Ctx = createContext<Stay | null>(null);
 
 export const iso = (d: Date) => format(d, "yyyy-MM-dd");
 
-type ProviderProps = { slug: string; name: string; initialCheckin?: string; initialCheckout?: string; children: React.ReactNode };
+type ProviderProps = {
+  slug: string;
+  name: string;
+  sleeps: number;
+  petsAllowed: boolean;
+  initialCheckin?: string;
+  initialCheckout?: string;
+  initialGuests?: number;
+  children: React.ReactNode;
+};
 
-export function StayProvider({ slug, name, initialCheckin, initialCheckout, children }: ProviderProps) {
+export function StayProvider({ slug, name, sleeps, petsAllowed, initialCheckin, initialCheckout, initialGuests, children }: ProviderProps) {
+  const [guests, setGuests] = useState(Math.min(Math.max(initialGuests ?? 2, 1), sleeps));
+  const [dogs, setDogs] = useState(0);
   const [nights, setNights] = useState<Map<string, Night>>(new Map());
   const [live, setLive] = useState(false);
   const [pending, setPending] = useState(0);
@@ -87,6 +104,12 @@ export function StayProvider({ slug, name, initialCheckin, initialCheckout, chil
     return {
       slug,
       name,
+      sleeps,
+      petsAllowed,
+      guests,
+      dogs,
+      setGuests,
+      setDogs,
       nights,
       live,
       loading: pending > 0,
@@ -100,7 +123,7 @@ export function StayProvider({ slug, name, initialCheckin, initialCheckout, chil
       total,
       nightCount,
     };
-  }, [slug, name, nights, live, pending, checkin, checkout, ensureMonth]);
+  }, [slug, name, sleeps, petsAllowed, guests, dogs, nights, live, pending, checkin, checkout, ensureMonth]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

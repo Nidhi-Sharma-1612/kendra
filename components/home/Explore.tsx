@@ -1,5 +1,7 @@
 import Image from "next/image";
-import { Mountain, Navigation } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ArrowUpRight, Navigation } from "lucide-react";
+import { allPosts } from "@/lib/guide";
 import { iconFor, nearbyByDistance } from "@/lib/places";
 import { Reveal } from "@/components/ui/Reveal";
 
@@ -10,6 +12,7 @@ import { Reveal } from "@/components/ui/Reveal";
  */
 export function Explore() {
   const places = nearbyByDistance();
+  const posts = allPosts().slice(0, 3);
 
   return (
     <section id="explore" className="scroll-mt-20 bg-paper-deep/60">
@@ -66,8 +69,24 @@ export function Explore() {
               className="-z-10 object-cover transition duration-[1.6s] ease-out group-hover:scale-[1.06]"
             />
             <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_top,rgb(42_32_48/0.55),transparent_40%)]" aria-hidden />
-            <figcaption className="absolute bottom-4 left-4 inline-flex items-center gap-1.5 rounded-full border border-paper/25 bg-heather-950/40 px-3.5 py-1.5 text-sm text-paper backdrop-blur-md">
-              <Mountain className="size-4" aria-hidden /> The view from here
+            {/* Latest from the guide, on a frosted panel */}
+            <figcaption className="absolute inset-x-3 bottom-3 rounded-[1.25rem] border border-paper/15 bg-heather-950/60 p-5 text-paper backdrop-blur-md">
+              <div className="flex items-center justify-between gap-4">
+                <p className="label !text-[0.62rem] text-blossom-300">From the Smoky Mountain Guide</p>
+                <Link href="/smoky-mountain-guide" className="group inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-paper/80 hover:text-paper">
+                  All stories <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                </Link>
+              </div>
+              <ul className="mt-2 divide-y divide-paper/15">
+                {posts.map((p) => (
+                  <li key={p.slug}>
+                    <Link href={`/smoky-mountain-guide/${p.slug}`} className="group flex items-center justify-between gap-4 py-2.5">
+                      <span className="font-display text-lg leading-snug">{p.title}</span>
+                      <ArrowUpRight className="size-4 shrink-0 text-paper/70 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </figcaption>
           </figure>
         </Reveal>

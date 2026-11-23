@@ -10,10 +10,10 @@ const nextConfig: NextConfig = {
       { source: "/reservation-request-form", destination: "/contact", permanent: true },
       { source: "/contact-us", destination: "/contact", permanent: true },
       { source: "/contact-us/testimonials", destination: "/", permanent: true },
-      // TODO(client): confirm whether Packages, Gift Certificates and Pay Now pages are still wanted.
-      { source: "/packages", destination: "/contact", permanent: false },
-      { source: "/gift-certificates", destination: "/contact", permanent: false },
-      { source: "/pay-now", destination: "/contact", permanent: false },
+      // Gift certificates and Pay Now are discontinued (owner, Nov 2026).
+      { source: "/gift-certificates", destination: "/", permanent: true },
+      { source: "/pay-now", destination: "/", permanent: true },
+      { source: "/packages", destination: "/specials", permanent: true },
     ];
   },
 };

@@ -84,7 +84,7 @@ export function MadeForTwo() {
 
             <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-4">
               <Link
-                href="/contact"
+                href="/specials"
                 className="group inline-flex items-center gap-3 rounded-full bg-paper py-2 pr-2 pl-7 font-semibold text-heather-900 transition hover:bg-blossom-100"
               >
                 Plan a celebration
@@ -93,7 +93,7 @@ export function MadeForTwo() {
                 </span>
               </Link>
               <a href={site.phoneHref} className="inline-flex items-center gap-2 text-sm font-medium text-paper/80 hover:text-paper">
-                <Phone className="size-4" aria-hidden /> or call {site.phone}
+                <Phone className="size-4" aria-hidden /> or call/text {site.phone}
               </a>
             </div>
           </Reveal>

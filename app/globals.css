@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * "Wildflower Mountain" — a botanical field-guide look. Every cabin is named for a mountain plant,
+ * "Wildflower Wilderness" — a botanical field-guide look. Every cabin is named for a mountain plant,
  * so the palette is pressed-flower colors on paper: ivory, heather plum, laurel sage, blossom rose
  * and honey, with charcoal ink for text.
  */
@@ -135,55 +135,16 @@ body {
     transform: scale(1);
   }
 }
-/* Slide counter captions: same timing as the slides, opacity only. */
-@keyframes wf-caption {
-  0%,
-  6% {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  10%,
-  24% {
-    opacity: 1;
-    transform: none;
-  }
-  28%,
-  100% {
-    opacity: 0;
-  }
-}
-@utility hero-caption {
-  animation: wf-caption 24s linear infinite both;
-}
-/* Slide progress line: fills across the slide's 6s (25% of the cycle), then empties. */
-@keyframes wf-progress {
-  0% {
-    transform: scaleX(0);
-  }
-  25% {
-    transform: scaleX(1);
-  }
-  25.01%,
-  100% {
-    transform: scaleX(0);
-  }
-}
-@utility hero-progress {
-  animation: wf-progress 24s linear infinite both;
-}
 @utility hero-slide {
   animation: wf-slide 24s linear infinite both;
 }
 @media (prefers-reduced-motion: reduce) {
   .rise,
-  .hero-slide,
-  .hero-progress,
-  .hero-caption {
+  .hero-slide {
     animation: none !important;
   }
-  /* Without motion, just show the first slide and its caption. */
-  .hero-slide:not(:first-child),
-  .hero-caption:not(:first-of-type) {
+  /* Without motion, just show the first slide. */
+  .hero-slide:not(:first-child) {
     display: none;
   }
 }
@@ -266,6 +227,18 @@ body {
   }
   .rdp-root.wf-calendar .rdp-months {
     justify-content: center;
+  }
+}
+
+/* Akia chat: lift its launcher above the cabin page's mobile booking bar. */
+@media (max-width: 1023px) {
+  body:has([data-mobile-booking-bar]) .__akia-chat-icon-wrapper {
+    bottom: 96px !important;
+  }
+  /* And hide it while the full-screen booking sheet or the phone menu is open. */
+  body:has([data-booking-sheet]) .__akia-chat-icon-wrapper,
+  body:has(#mobile-nav) .__akia-chat-icon-wrapper {
+    display: none !important;
   }
 }
 

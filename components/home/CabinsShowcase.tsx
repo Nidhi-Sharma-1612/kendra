@@ -30,7 +30,7 @@ export function CabinsShowcase({ cabins, prices }: { cabins: Cabin[]; prices: Re
           </Reveal>
           <Reveal delay={0.1} className="lg:pb-2">
             <p className="max-w-md text-lg leading-relaxed text-ink-600">
-              Eleven studios built for two, and one two-bedroom log cabin for a few more. Each is named for a flower that grows on the mountain.
+              Eleven studios for two and one two-bedroom family cabin, each named for a flower that grows on the mountain.
             </p>
           </Reveal>
         </div>
@@ -39,7 +39,7 @@ export function CabinsShowcase({ cabins, prices }: { cabins: Cabin[]; prices: Re
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {shown.map((c, i) => (
             <Reveal key={c.slug} delay={(i % 3) * 0.06}>
-              <CabinTile cabin={c} fromPrice={prices[c.webrezId]} />
+              <CabinTile cabin={c} fromPrice={prices[c.webrezId]} showTagline />
             </Reveal>
           ))}
         </div>

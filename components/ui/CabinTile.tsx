@@ -17,12 +17,15 @@ export function CabinTile({
   result,
   query = "",
   priority = false,
+  showTagline = false,
 }: {
   cabin: Cabin;
   fromPrice?: number;
   result?: TileResult;
   query?: string;
   priority?: boolean;
+  /** Show the cabin's one-line tagline under its name (used on /cabins, where tiles sit side by side). */
+  showTagline?: boolean;
 }) {
   const dim = result && !result.ok;
   return (
@@ -63,6 +66,7 @@ export function CabinTile({
       <div className="absolute inset-x-3 bottom-3 rounded-[1.25rem] border border-paper/15 bg-heather-950/55 px-5 py-4 text-paper backdrop-blur-md [text-shadow:0_1px_2px_rgb(0_0_0/0.25)]">
         <p className="font-display text-sm text-paper/85 italic">{cabin.botanical.latin}</p>
         <h3 className="font-display text-[1.8rem] leading-tight font-medium">{cabin.name}</h3>
+        {showTagline && <p className="mt-0.5 line-clamp-1 text-sm text-paper/80">{cabin.tagline}</p>}
         <div className="mt-2.5 flex items-center justify-between gap-3 border-t border-paper/20 pt-2.5 text-sm">
           <span className="flex items-center gap-3.5 text-paper/90">
             <span className="flex items-center gap-1.5"><Users className="size-4" aria-hidden />{cabin.sleeps}</span>

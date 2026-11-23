@@ -86,8 +86,11 @@ export function HeroSearch({ initial, placement = "bottom", featured = false }: 
     router.push(`/cabins?checkin=${checkin}&checkout=${checkout}&guests=${guests}#results`);
   }
 
-  const fieldClass = (on: boolean) =>
-    `flex items-center gap-3 rounded-full text-left transition hover:bg-paper ${featured ? "px-4 py-3 sm:px-5 sm:py-3.5" : "px-4 py-2.5"} ${on ? "bg-paper ring-1 ring-heather-700/25" : ""}`;
+  // `divider`: a thin line on the left (wide layout only), so the three fields read as equal segments.
+  const fieldClass = (on: boolean, divider = false) =>
+    `relative flex min-w-0 items-center gap-3 rounded-full text-left transition hover:bg-paper ${featured ? "px-4 py-3 sm:px-5 sm:py-3.5" : "px-4 py-2.5"} ${
+      on ? "bg-paper ring-1 ring-heather-700/25" : ""
+    } ${divider ? "sm:before:absolute sm:before:top-1/2 sm:before:-left-0.5 sm:before:h-8 sm:before:w-px sm:before:-translate-y-1/2 sm:before:bg-vellum" : ""}`;
   // Featured: icons sit in soft rose circles and values are a size larger.
   const iconClass = featured
     ? "hidden size-10 shrink-0 rounded-full bg-blossom-100 p-2.5 text-blossom-500 sm:block"
@@ -101,7 +104,7 @@ export function HeroSearch({ initial, placement = "bottom", featured = false }: 
           e.preventDefault();
           submit();
         }}
-        className={`grid grid-cols-2 gap-1 rounded-[1.75rem] bg-white sm:grid-cols-[1fr_1fr_auto_auto] sm:items-center sm:rounded-full ${
+        className={`grid grid-cols-2 gap-1 rounded-[1.75rem] bg-white sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-center sm:rounded-full ${
           featured ? "p-2" : "border border-vellum p-1.5 shadow-lift"
         }`}
         aria-label="Search availability"
@@ -109,7 +112,7 @@ export function HeroSearch({ initial, placement = "bottom", featured = false }: 
         {(["checkin", "checkout"] as const).map((k) => {
           const value = k === "checkin" ? from : to;
           return (
-            <button key={k} type="button" onClick={() => openField(k)} className={fieldClass(active === k)} aria-expanded={active === k}>
+            <button key={k} type="button" onClick={() => openField(k)} className={fieldClass(active === k, k === "checkout")} aria-expanded={active === k}>
               <CalendarDays className={iconClass} aria-hidden />
               <span>
                 <span className="label block !text-[0.6rem] text-ink-400">{k === "checkin" ? "Check-in" : "Checkout"}</span>
@@ -118,7 +121,7 @@ export function HeroSearch({ initial, placement = "bottom", featured = false }: 
             </button>
           );
         })}
-        <button type="button" onClick={() => setActive(active === "guests" ? null : "guests")} className={fieldClass(active === "guests")} aria-expanded={active === "guests"}>
+        <button type="button" onClick={() => setActive(active === "guests" ? null : "guests")} className={fieldClass(active === "guests", true)} aria-expanded={active === "guests"}>
           <Users className={iconClass} aria-hidden />
           <span>
             <span className="label block !text-[0.6rem] text-ink-400">Guests</span>
@@ -127,11 +130,20 @@ export function HeroSearch({ initial, placement = "bottom", featured = false }: 
         </button>
         <button
           type="submit"
-          className={`flex items-center justify-center gap-2 rounded-full bg-heather-700 font-semibold text-paper transition hover:bg-heather-900 ${
-            featured ? "px-8 py-4 text-base sm:py-5" : "px-6 py-3.5"
+          className={`flex items-center justify-center gap-2 rounded-full bg-heather-700 font-semibold whitespace-nowrap text-paper transition hover:bg-heather-900 ${
+            featured ? "px-5 py-4 text-base sm:px-8 sm:py-5" : "px-6 py-3.5"
           }`}
         >
-          <Search className={featured ? "size-5" : "size-4"} aria-hidden /> {featured ? "Search cabins" : "Search"}
+          <Search className={featured ? "size-5" : "size-4"} aria-hidden />
+          {featured ? (
+            <>
+              {/* Short label on phones, where the button shares a row with Guests. */}
+              <span className="sm:hidden">Search</span>
+              <span className="hidden sm:inline">Search cabins</span>
+            </>
+          ) : (
+            "Search"
+          )}
         </button>
       </form>
 
@@ -165,7 +177,7 @@ export function HeroSearch({ initial, placement = "bottom", featured = false }: 
           <div className="flex items-center justify-between">
             <span>
               <span className="block font-semibold text-heather-900">Guests</span>
-              <span className="text-xs text-ink-600">Ages 18+</span>
+              <span className="text-xs text-ink-600">Adults and children</span>
             </span>
             <span className="flex items-center gap-3">
               <button type="button" onClick={() => setGuests((g) => Math.max(1, g - 1))} disabled={guests <= 1} className="grid size-9 place-items-center rounded-full border border-vellum text-heather-700 disabled:opacity-30" aria-label="Fewer guests"><Minus className="size-4" /></button>
@@ -173,7 +185,7 @@ export function HeroSearch({ initial, placement = "bottom", featured = false }: 
               <button type="button" onClick={() => setGuests((g) => Math.min(6, g + 1))} disabled={guests >= 6} className="grid size-9 place-items-center rounded-full border border-vellum text-heather-700 disabled:opacity-30" aria-label="More guests"><Plus className="size-4" /></button>
             </span>
           </div>
-          <p className="mt-4 border-t border-vellum pt-3 text-xs leading-relaxed text-ink-600">Our studios sleep 2. For 3–6 guests, Mountain Laurel has two bedrooms.</p>
+          <p className="mt-4 border-t border-vellum pt-3 text-xs leading-relaxed text-ink-600">Our studios sleep 2. For 3–6 guests or families with children, Mountain Laurel has two bedrooms.</p>
         </div>
       )}
     </div>
