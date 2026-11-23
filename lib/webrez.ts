@@ -96,7 +96,9 @@ export type StayCheck =
 /** Can this cabin be booked from checkin to checkout? Applies booked nights, arrival/departure rules and minimum stay. */
 export async function checkStay(webrezId: number, checkin: string, checkout: string): Promise<StayCheck> {
   const nightsCount = Math.round((Date.parse(checkout) - Date.parse(checkin)) / 86_400_000);
-  const list = await getNights(webrezId, checkin);
+  // Fetch from the 1st of the check-in month (not the check-in day itself), so every stay check in
+  // that month, and the search calendar, share one cached feed request instead of one each.
+  const list = await getNights(webrezId, `${checkin.slice(0, 8)}01`);
   if (!list.length) return { status: "unknown", nights: nightsCount };
   const byDate = new Map(list.map((n) => [n.date, n]));
   const first = byDate.get(checkin);
@@ -114,6 +116,37 @@ export async function checkStay(webrezId: number, checkin: string, checkout: str
   }
   if (byDate.get(checkout)?.noDeparture) return { status: "unavailable", nights: nightsCount, reason: "No checkouts that day" };
   return { status: "available", nights: nightsCount, total: Number.isFinite(total) ? total : null };
+}
+
+/** One cabin's bookable night, as used by the site-wide search calendar. */
+export type OpenNight = { id: number; price: number | null; minStay: number; noArrival: boolean; noDeparture: boolean };
+
+/**
+ * Site-wide availability for the search calendar: for each date from `startISO` (about two months),
+ * the cabins that can be booked that night. One feed request covers every cabin.
+ */
+export async function getSiteAvailability(ids: number[], startISO: string): Promise<{ date: string; open: OpenNight[] }[]> {
+  const feed = await fetchWindow(startISO);
+  const days = feed?.date_data ?? {};
+  return Object.keys(days)
+    .sort()
+    .map((key) => {
+      const open: OpenNight[] = [];
+      for (const id of ids) {
+        const d = days[key]?.[String(id)];
+        if (!d || d.past_date) continue;
+        if (!((d.num_avail ?? 0) > 0) || d.closed_to_web || d.flag_by_phone_only) continue;
+        open.push({
+          id,
+          price: typeof d.cost === "number" ? Math.round(d.cost) : null,
+          minStay: Math.max(1, d.min_booking_length ?? 1),
+          noArrival: Boolean(d.closed_to_arrival),
+          noDeparture: Boolean(d.closed_to_departure),
+        });
+      }
+      return { date: dashed(key), open };
+    })
+    .filter((n) => n.date >= startISO);
 }
 
 /** Lowest available nightly rate per cabin over the next ~2 months, keyed by WebRez ID. */

@@ -40,42 +40,49 @@ export function CabinsGrid({
   const [filter, setFilter] = useState<FilterId>("all");
   const active = FILTERS.find((f) => f.id === filter)!;
   const shown = items.filter((i) => active.test(i.cabin));
+  // Only filters with something to show; a filter that would show every result adds nothing either.
+  const useful = FILTERS.filter((f) => {
+    const count = items.filter((i) => f.test(i.cabin)).length;
+    return f.id === "all" || (count > 0 && count < items.length);
+  });
 
   return (
     <>
       {/* Toolbar: heading on the left, filters on the right (stacked on phones) */}
       <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         {header}
-        <div
-          className="flex flex-wrap gap-2"
-          role="group"
-          aria-label="Filter cabins"
-        >
-          {FILTERS.map((f) => {
-            const count = items.filter((i) => f.test(i.cabin)).length;
-            const on = f.id === filter;
-            return (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setFilter(f.id)}
-                aria-pressed={on}
-                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
-                  on
-                    ? "bg-heather-900 text-paper"
-                    : "border border-heather-700/20 bg-paper text-heather-900 hover:border-heather-700/50"
-                }`}
-              >
-                {f.label}
-                <span
-                  className={`rounded-full px-1.5 text-xs ${on ? "bg-paper/15 text-paper" : "bg-paper-deep text-ink-600"}`}
+        {useful.length > 1 && (
+          <div
+            className="flex flex-wrap gap-2"
+            role="group"
+            aria-label="Filter cabins"
+          >
+            {useful.map((f) => {
+              const count = items.filter((i) => f.test(i.cabin)).length;
+              const on = f.id === filter;
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFilter(f.id)}
+                  aria-pressed={on}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
+                    on
+                      ? "bg-heather-900 text-paper"
+                      : "border border-heather-700/20 bg-paper text-heather-900 hover:border-heather-700/50"
+                  }`}
                 >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  {f.label}
+                  <span
+                    className={`rounded-full px-1.5 text-xs ${on ? "bg-paper/15 text-paper" : "bg-paper-deep text-ink-600"}`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <motion.div layout className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

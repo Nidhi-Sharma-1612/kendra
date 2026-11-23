@@ -197,6 +197,11 @@ body {
   color: inherit;
   opacity: 0.85;
 }
+/* Search calendar: only one or two cabins left that night. */
+.rdp-root.wf-calendar .wf-price.wf-few {
+  color: var(--color-blossom-500);
+  font-weight: 700;
+}
 .rdp-root.wf-calendar .wf-booked {
   opacity: 1;
 }

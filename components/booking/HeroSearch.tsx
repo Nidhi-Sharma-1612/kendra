@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { DayPicker, type Matcher } from "react-day-picker";
-import { addMonths, format, isAfter, parseISO, startOfDay } from "date-fns";
-import { CalendarDays, Minus, Plus, Search, Users } from "lucide-react";
+import { DayPicker, type DayButtonProps, type Matcher } from "react-day-picker";
+import { addDays, addMonths, format, isAfter, isBefore, isSameDay, parseISO, startOfDay, startOfMonth } from "date-fns";
+import { CalendarDays, Loader2, Minus, Plus, Search, Users } from "lucide-react";
 import "react-day-picker/style.css";
+import { cabins } from "@/data/cabins";
+import type { OpenNight } from "@/lib/webrez";
 
 const iso = (d: Date) => format(d, "yyyy-MM-dd");
 
@@ -59,9 +61,98 @@ export function HeroSearch({ initial, placement = "bottom", featured = false }: 
   const datesOpen = active === "checkin" || active === "checkout";
   const pretty = (d?: Date) => (d ? format(d, "EEE, MMM d") : "Add date");
 
-  // While choosing checkout, the check-in day itself can't be picked (no same-day stays).
+  // ---- Live availability across all cabins (loaded a two-month window at a time) ----
+  const [nights, setNights] = useState<Map<string, OpenNight[]>>(new Map());
+  const [live, setLive] = useState(false);
+  const [pending, setPending] = useState(0);
+  const [month, setMonth] = useState(() => startOfMonth(from ?? today));
+  const requested = useRef(new Set<string>());
+
+  const ensureMonth = useCallback((m: Date) => {
+    const start = iso(startOfMonth(m));
+    if (requested.current.has(start)) return;
+    requested.current.add(start);
+    requested.current.add(iso(startOfMonth(addMonths(m, 1))));
+    setPending((p) => p + 1);
+    fetch(`/api/availability?start=${start}`)
+      .then((r) => (r.ok ? r.json() : { nights: [] }))
+      .then(({ nights: list }: { nights: { date: string; open: OpenNight[] }[] }) => {
+        if (!list.length) return;
+        setLive(true);
+        setNights((prev) => {
+          const next = new Map(prev);
+          for (const n of list) next.set(n.date, n.open);
+          return next;
+        });
+      })
+      .catch(() => {})
+      .finally(() => setPending((p) => p - 1));
+  }, []);
+
+  useEffect(() => {
+    if (!datesOpen) return;
+    ensureMonth(month);
+    ensureMonth(addMonths(month, 1));
+  }, [datesOpen, month, ensureMonth]);
+
+  // Only cabins that sleep this many guests count (3+ guests: Mountain Laurel only).
+  const eligible = useMemo(() => new Set(cabins.filter((c) => c.sleeps >= guests).map((c) => c.webrezId)), [guests]);
+  const openOn = useCallback((d: Date) => (nights.get(iso(d)) ?? []).filter((n) => eligible.has(n.id)), [nights, eligible]);
+  const known = (d: Date) => nights.has(iso(d));
+
+  /** Cabins that can be booked from `start` to `end` (every night free, min stay met, rules allow it). */
+  const bookable = useCallback(
+    (start: Date, end: Date) => {
+      const first = openOn(start).filter((n) => !n.noArrival);
+      return first.filter((c) => {
+        const count = Math.round((end.getTime() - start.getTime()) / 86_400_000);
+        if (count < c.minStay) return false;
+        for (let d = addDays(start, 1); d < end; d = addDays(d, 1)) {
+          if (!openOn(d).some((n) => n.id === c.id)) return false;
+        }
+        const out = nights.get(iso(end))?.find((n) => n.id === c.id);
+        return !out?.noDeparture;
+      });
+    },
+    [openOn, nights],
+  );
+
+  // Fully booked: we have data for the date and no fitting cabin is free that night.
+  const soldOut = (d: Date) => live && known(d) && !isBefore(d, today) && openOn(d).length === 0;
+
+  // A day can start a stay if some fitting cabin is free that night and allows arrivals.
+  const canCheckIn = (d: Date) => !known(d) || openOn(d).some((n) => !n.noArrival);
+  // A day can end the stay from `from` if some fitting cabin is free every night in between.
+  // Nights we haven't loaded yet are left selectable; the results page checks them.
+  const canCheckOut = (start: Date, end: Date) => {
+    for (let d = start; d < end; d = addDays(d, 1)) if (!known(d)) return true;
+    return bookable(start, end).length > 0;
+  };
+
   const disabled: Matcher[] = [{ before: today }];
-  if (active === "checkout" && from) disabled.push(from);
+  if (active === "checkout" && from) {
+    disabled.push(from); // no same-day stays
+    if (live) {
+      disabled.push((d: Date) => (isAfter(d, from) ? !canCheckOut(from, d) : !isSameDay(d, from) && !canCheckIn(d)));
+    }
+  } else if (live) {
+    disabled.push((d: Date) => !canCheckIn(d));
+  }
+
+  /** Day cell: the date, then the lowest nightly price, or "2 left" when only one or two cabins remain. */
+  function AvailabilityDay({ day, modifiers, children, ...props }: DayButtonProps) {
+    const open = live && !modifiers.outside && !isBefore(day.date, today) ? openOn(day.date) : [];
+    const prices = open.map((n) => n.price).filter((p): p is number => p != null);
+    const low = open.length > 0 && open.length <= 2 && eligible.size > 2;
+    return (
+      <button {...props}>
+        <span>{children}</span>
+        {open.length > 0 && !modifiers.disabled && (
+          <span className={low ? "wf-price wf-few" : "wf-price"}>{low ? `${open.length} left` : prices.length ? `$${Math.min(...prices)}` : ""}</span>
+        )}
+      </button>
+    );
+  }
 
   function pick(day: Date) {
     if (active === "checkout" && from && isAfter(day, from)) {
@@ -155,20 +246,50 @@ export function HeroSearch({ initial, placement = "bottom", featured = false }: 
           <DayPicker
             mode="range"
             numberOfMonths={wide ? 2 : 1}
+            month={month}
+            onMonthChange={setMonth}
             selected={{ from, to }}
             disabled={disabled}
             excludeDisabled={false}
+            // While choosing checkout, a booked night that is still a valid checkout morning isn't crossed out.
+            modifiers={{ booked: (d: Date) => soldOut(d) && !(active === "checkout" && from && isAfter(d, from) && canCheckOut(from, d)) }}
+            modifiersClassNames={{ booked: "wf-booked" }}
+            components={{ DayButton: AvailabilityDay }}
             startMonth={today}
             endMonth={addMonths(today, 18)}
-            defaultMonth={from ?? today}
             onSelect={(_, day) => pick(day)}
             className="wf-calendar"
           />
-          {from && to && (
-            <p className="mt-2 text-xs text-ink-600">
-              {Math.round((to.getTime() - from.getTime()) / 86_400_000)} nights · {format(from, "MMM d")} → {format(to, "MMM d")}
-            </p>
-          )}
+
+          {/* Legend */}
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-vellum pt-4 text-xs text-ink-600" aria-live="polite">
+            {pending > 0 && !live ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="size-3.5 animate-spin text-blossom-500" aria-hidden /> Checking availability…
+              </span>
+            ) : live ? (
+              <>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold text-sage-700">$</span> Available · lowest nightly rate
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="font-semibold text-blossom-500">2 left</span> Almost full
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="inline-block h-3.5 w-5 rounded bg-[repeating-linear-gradient(135deg,rgb(201_138_134/0.35)_0_3px,transparent_3px_6px)]" aria-hidden />
+                  Fully booked
+                </span>
+                {guests > 2 && <span className="text-heather-700">Showing dates for {guests} guests (Mountain Laurel)</span>}
+              </>
+            ) : (
+              <span>Live availability is unavailable right now; we&apos;ll check your dates on the next step.</span>
+            )}
+            {from && to && (
+              <span className="ml-auto font-semibold text-heather-900">
+                {Math.round((to.getTime() - from.getTime()) / 86_400_000)} nights · {format(from, "MMM d")} → {format(to, "MMM d")}
+              </span>
+            )}
+          </div>
         </div>
       )}
 

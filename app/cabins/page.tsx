@@ -2,20 +2,23 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import {
+  ArrowRight,
+  BedDouble,
+  CalendarDays,
+  CookingPot,
   Flame,
   Heart,
   Phone,
+  Users,
   Waves,
   Wifi,
   X,
-  CookingPot,
-  BedDouble,
 } from "lucide-react";
 import { site } from "@/data/site";
-import { format, parseISO } from "date-fns";
-import { cabins, type Cabin } from "@/data/cabins";
+import { addDays, differenceInCalendarDays, format, parseISO } from "date-fns";
+import { cabins } from "@/data/cabins";
 import { checkStay, getFromPrices, type StayCheck } from "@/lib/webrez";
-import { parseSearch, searchQuery } from "@/lib/search";
+import { parseSearch, searchQuery, type StaySearch } from "@/lib/search";
 import { HeroSearch } from "@/components/booking/HeroSearch";
 import { CabinsGrid, type GridItem } from "@/components/cabins/CabinsGrid";
 import type { TileResult } from "@/components/ui/CabinTile";
@@ -38,13 +41,7 @@ export const metadata: Metadata = {
     "Eleven romantic studio cabins for two and one two-bedroom log cabin, each with a private hot tub, jacuzzi and wood-burning fireplace.",
 };
 
-function toResult(cabin: Cabin, check: StayCheck, guests: number): TileResult {
-  if (cabin.sleeps < guests)
-    return {
-      ok: false,
-      label: "Not available",
-      detail: `Sleeps ${cabin.sleeps}`,
-    };
+function toResult(check: StayCheck): TileResult {
   if (check.status === "unavailable")
     return { ok: false, label: "Not available", detail: check.reason };
   if (check.status === "unknown")
@@ -57,6 +54,52 @@ function toResult(cabin: Cabin, check: StayCheck, guests: number): TileResult {
         : "Available",
     detail: `${check.nights} night${check.nights > 1 ? "s" : ""}, before taxes`,
   };
+}
+
+/** Cabins that sleep the party and can be booked for the whole stay, cheapest total first. */
+async function freeCabins(search: StaySearch) {
+  const fits = cabins.filter((c) => c.sleeps >= search.guests);
+  const checked = await Promise.all(
+    fits.map(async (cabin) => ({
+      cabin,
+      check: await checkStay(cabin.webrezId, search.checkin, search.checkout),
+    })),
+  );
+  const total = (c: StayCheck) =>
+    c.status === "available" && c.total != null ? c.total : Infinity;
+  return checked
+    .filter(({ check }) => check.status !== "unavailable")
+    .sort((a, b) => total(a.check) - total(b.check));
+}
+
+/** Same-length stays starting up to 3 days earlier or later that have cabins free (best 4). */
+async function nearbyDates(search: StaySearch) {
+  const length = differenceInCalendarDays(
+    parseISO(search.checkout),
+    parseISO(search.checkin),
+  );
+  const today = format(new Date(), "yyyy-MM-dd");
+  const options = await Promise.all(
+    [-3, -2, -1, 1, 2, 3].map(async (shift) => {
+      const checkin = format(
+        addDays(parseISO(search.checkin), shift),
+        "yyyy-MM-dd",
+      );
+      if (checkin < today) return null;
+      const s: StaySearch = {
+        checkin,
+        checkout: format(addDays(parseISO(checkin), length), "yyyy-MM-dd"),
+        guests: search.guests,
+      };
+      const free = (await freeCabins(s)).filter(
+        ({ check }) => check.status === "available",
+      );
+      return free.length ? { search: s, count: free.length } : null;
+    }),
+  );
+  return options
+    .filter((o): o is { search: StaySearch; count: number } => Boolean(o))
+    .slice(0, 4);
 }
 
 /** Eyebrow + heading pattern shared by the homepage sections. */
@@ -88,27 +131,29 @@ export default async function CabinsPage({
   const search = parseSearch(await searchParams);
   const prices = await getFromPrices(cabins.map((c) => c.webrezId));
 
-  // With dates: check every cabin, available ones first, then the rest.
-  const items: GridItem[] = search
-    ? (
-        await Promise.all(
-          cabins.map(async (c) => {
-            const result = toResult(
-              c,
-              await checkStay(c.webrezId, search.checkin, search.checkout),
-              search.guests,
-            );
-            return {
-              cabin: c,
-              fromPrice: prices[c.webrezId],
-              result,
-              query: result.ok ? searchQuery(search) : "",
-            };
-          }),
-        )
-      ).sort((a, b) => Number(b.result!.ok) - Number(a.result!.ok))
-    : cabins.map((c) => ({ cabin: c, fromPrice: prices[c.webrezId] }));
-  const availableCount = items.filter((i) => i.result?.ok).length;
+  // With dates: only the cabins that fit the party and are free every night, cheapest first.
+  let items: GridItem[] = cabins.map((c) => ({
+    cabin: c,
+    fromPrice: prices[c.webrezId],
+  }));
+  let nearby: { search: StaySearch; count: number }[] = [];
+  if (search) {
+    const results = await freeCabins(search);
+    items = results.map(({ cabin, check }) => ({
+      cabin,
+      fromPrice: prices[cabin.webrezId],
+      result: toResult(check),
+      query: searchQuery(search),
+    }));
+    // Nothing free: suggest the same stay length a few days either side.
+    if (!items.length) nearby = await nearbyDates(search);
+  }
+  const nights = search
+    ? differenceInCalendarDays(
+        parseISO(search.checkout),
+        parseISO(search.checkin),
+      )
+    : 0;
   const range = search
     ? `${format(parseISO(search.checkin), "EEE, MMM d")} → ${format(parseISO(search.checkout), "EEE, MMM d")}`
     : "";
@@ -146,7 +191,10 @@ export default async function CabinsPage({
               Eleven studios for two and one family cabin, spread across{" "}
               {site.acres} wooded acres. Pick your dates to see live prices.
             </p>
-            <div className="mt-10 max-w-[56rem] rounded-[2rem] shadow-[0_0_0_8px_rgb(247_242_234/0.18),0_30px_70px_-20px_rgb(0_0_0/0.6)] sm:rounded-full">
+            <div
+              id="search"
+              className="mt-10 max-w-[56rem] scroll-mt-28 rounded-[2rem] shadow-[0_0_0_8px_rgb(247_242_234/0.18),0_30px_70px_-20px_rgb(0_0_0/0.6)] sm:rounded-full"
+            >
               <HeroSearch initial={search} featured />
             </div>
           </div>
@@ -167,51 +215,132 @@ export default async function CabinsPage({
         </div>
       </section>
 
-      {/* Cabins */}
+      {/* Cabins: everything, or with dates only the cabins free for that stay */}
       <section
         id="results"
         className="mx-auto max-w-7xl scroll-mt-24 px-4 py-20 sm:px-10 lg:px-14 lg:py-24"
       >
-        <CabinsGrid
-          items={items}
-          header={
-            search ? (
-              <div>
-                <SectionTitle
-                  eyebrow={`${range} · ${search.guests} guest${search.guests > 1 ? "s" : ""}`}
-                  title={
-                    availableCount === 0
-                      ? "No cabins free"
-                      : `${availableCount} cabin${availableCount > 1 ? "s" : ""} available,`
-                  }
-                  accent={
-                    availableCount === 0
-                      ? "for those dates."
-                      : "ready for your stay."
-                  }
-                />
-                {availableCount === 0 && (
-                  <p className="mt-3 text-ink-600">
-                    Try shifting your dates by a day or two, or give us a call
-                    and we&apos;ll help.
-                  </p>
-                )}
-                <Link
-                  href="/cabins"
-                  className="mt-5 inline-flex items-center gap-1.5 rounded-full border border-heather-700/20 px-4 py-2 text-sm font-semibold text-heather-700 transition hover:border-heather-700/50"
-                >
-                  <X className="size-4" aria-hidden /> Clear dates
-                </Link>
-              </div>
+        {search && items.length === 0 ? (
+          // No cabins free: suggest nearby dates instead of a dead end.
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="label text-sage-700">
+              {range} · {search.guests} guest{search.guests > 1 ? "s" : ""}
+            </p>
+            <h2 className="mt-5 font-display text-4xl leading-[1.05] font-medium text-heather-900 sm:text-5xl">
+              No cabins are free
+              <em className="block text-blossom-500">for those dates.</em>
+            </h2>
+            {search.guests > 2 && (
+              <p className="mt-4 text-ink-600">
+                For 3 or more guests, Mountain Laurel is the cabin that fits.
+                Our studios sleep two.
+              </p>
+            )}
+            {nearby.length > 0 ? (
+              <>
+                <p className="mt-8 text-ink-600">
+                  These {nights}-night stays nearby have cabins free:
+                </p>
+                <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {nearby.map((n) => (
+                    <li key={n.search.checkin}>
+                      <Link
+                        href={`/cabins${searchQuery(n.search)}#results`}
+                        className="group flex items-center justify-between gap-4 rounded-[1.25rem] border border-vellum bg-paper-deep/60 px-5 py-4 text-left transition hover:border-heather-700/40"
+                      >
+                        <span>
+                          <span className="block font-display text-xl text-heather-900">
+                            {format(parseISO(n.search.checkin), "EEE, MMM d")} →{" "}
+                            {format(parseISO(n.search.checkout), "EEE, MMM d")}
+                          </span>
+                          <span className="text-sm text-sage-700">
+                            {n.count} cabin{n.count > 1 ? "s" : ""} free
+                          </span>
+                        </span>
+                        <ArrowRight
+                          className="size-4 shrink-0 text-heather-700 transition-transform group-hover:translate-x-0.5"
+                          aria-hidden
+                        />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
             ) : (
-              <SectionTitle
-                eyebrow="All cabins"
-                title="Twelve hideaways,"
-                accent="each its own wildflower."
-              />
-            )
-          }
-        />
+              <p className="mt-6 text-ink-600">
+                Try other dates, or call or text and we&apos;ll help you find a
+                stay.
+              </p>
+            )}
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <a
+                href="#search"
+                className="inline-flex items-center gap-2 rounded-full bg-heather-900 px-5 py-3 text-sm font-semibold text-paper transition hover:bg-heather-700"
+              >
+                <CalendarDays className="size-4" aria-hidden /> Change dates
+              </a>
+              <a
+                href={site.phoneHref}
+                className="inline-flex items-center gap-2 rounded-full border border-heather-700/25 px-5 py-3 text-sm font-semibold text-heather-900 transition hover:border-heather-700/50"
+              >
+                <Phone className="size-4" aria-hidden /> Call or text{" "}
+                {site.phone}
+              </a>
+            </div>
+          </div>
+        ) : (
+          <CabinsGrid
+            items={items}
+            header={
+              search ? (
+                <div>
+                  <SectionTitle
+                    eyebrow="Your stay"
+                    title={`${items.length} cabin${items.length > 1 ? "s" : ""} free,`}
+                    accent={range + "."}
+                  />
+                  <div className="mt-5 flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-paper-deep px-4 py-2 text-sm font-medium text-heather-900">
+                      <CalendarDays
+                        className="size-4 text-blossom-500"
+                        aria-hidden
+                      />{" "}
+                      {nights} night{nights > 1 ? "s" : ""}
+                    </span>
+                    <span className="inline-flex items-center gap-2 rounded-full bg-paper-deep px-4 py-2 text-sm font-medium text-heather-900">
+                      <Users className="size-4 text-blossom-500" aria-hidden />{" "}
+                      {search.guests} guest{search.guests > 1 ? "s" : ""}
+                    </span>
+                    <a
+                      href="#search"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-heather-700/20 px-4 py-2 text-sm font-semibold text-heather-700 transition hover:border-heather-700/50"
+                    >
+                      Change dates
+                    </a>
+                    <Link
+                      href="/cabins"
+                      className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-semibold text-ink-600 transition hover:text-heather-900"
+                    >
+                      <X className="size-4" aria-hidden /> Clear search
+                    </Link>
+                  </div>
+                  <p className="mt-4 text-sm text-ink-600">
+                    {search.guests > 2
+                      ? "Only Mountain Laurel sleeps more than two. "
+                      : ""}
+                    Totals are nightly rates before taxes; pick a cabin to book.
+                  </p>
+                </div>
+              ) : (
+                <SectionTitle
+                  eyebrow="All cabins"
+                  title="Twelve hideaways,"
+                  accent="each its own wildflower."
+                />
+              )
+            }
+          />
+        )}
       </section>
 
       {/* Help choosing */}
